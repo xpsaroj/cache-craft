@@ -1,0 +1,53 @@
+name: cachecraft
+services:
+  pg:
+    image: postgres:16-alpine
+    container_name: cachecraft_pg
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    ports:
+      - "5432:5432"
+    volumes:
+      - cc_pg_data:/var/lib/postgresql/data
+    networks:
+      - cc_network
+
+  server:
+    build: apps/server
+    container_name: cachecraft_server
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      PORT: 4000
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+    volumes:
+      - ./apps/server:/app
+      - /app/node_modules
+    ports:
+      - "4000:4000"
+    depends_on:
+      - pg
+    networks:
+      - cc_network
+
+  web:
+    build: apps/web
+    container_name: cachecraft_web
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    networks:
+      - cc_network
+
+volumes:
+  cc_pg_data:
+
+networks:
+  cc_network:

@@ -1,0 +1,6 @@
+# Temp files during development
+tmp/
+
+# Env files
+.env*
+!.env.example
