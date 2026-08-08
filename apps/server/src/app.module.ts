@@ -3,8 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 
 import { resolveEnvFilePath, validate } from "./config/env.validation";
 import { DatabaseModule } from "./database/database.module";
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -14,8 +13,7 @@ import { AppService } from './app.service';
       validate,
     }),
     DatabaseModule,
+    AuthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule { }

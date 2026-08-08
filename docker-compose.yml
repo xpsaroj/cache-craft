@@ -21,6 +21,7 @@ services:
       DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
       PORT: 4000
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     volumes:
       - ./apps/server:/app
       - /app/node_modules

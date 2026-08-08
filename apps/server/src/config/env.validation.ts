@@ -1,5 +1,5 @@
 import { plainToInstance } from "class-transformer";
-import { IsEnum, IsInt, IsNotEmpty, IsPositive, IsString, Matches, validateSync } from "class-validator";
+import { IsEnum, IsInt, IsNotEmpty, IsPositive, IsString, Matches, MinLength, validateSync } from "class-validator";
 
 enum NodeEnv {
     Development = "development",
@@ -23,6 +23,11 @@ class EnvironmentVariables {
     @IsString()
     @Matches(/^postgresql:\/\//, { message: "DATABASE_URL must start with postgresql://" })
     DATABASE_URL!: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(32, { message: "JWT_SECRET must be at least 32 characters long" })
+    JWT_SECRET!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
