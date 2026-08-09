@@ -4,23 +4,23 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { hashPassword, verifyPassword } from 'src/common/utils/password.util';
-import { AuthRepository } from './auth.repository';
+import { UsersRepository } from 'src/modules/users/users.repository';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService
   ) { }
 
   async register(dto: RegisterDto) {
-    const existingUser = await this.authRepository.findUserByEmail(dto.email)
+    const existingUser = await this.usersRepository.findUserByEmail(dto.email)
 
     if (existingUser) {
       throw new ConflictException("User already exists.")
     }
 
-    const user = await this.authRepository.createUser({
+    const user = await this.usersRepository.createUser({
       ...dto,
       passwordHash: await hashPassword(dto.password),
     })
@@ -36,7 +36,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.authRepository.findUserByEmail(dto.email);
+    const user = await this.usersRepository.findUserByEmail(dto.email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials.');
