@@ -6,3 +6,8 @@ export interface RegisterUserData {
     name: string;
     role: UserRole
 }
+
+export interface UpdateUserData {
+    email: string;
+    name: string;
+}

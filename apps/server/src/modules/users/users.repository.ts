@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { DRIZZLE } from "src/database/database.constants";
 import type { DrizzleDb } from "src/database/database.types";
 import { users } from "src/database/schema";
-import type { RegisterUserData } from "./users.types";
+import type { RegisterUserData, UpdateUserData } from "./users.types";
+
 
 @Injectable()
 export class UsersRepository {
@@ -21,6 +22,13 @@ export class UsersRepository {
     async findUserById(id: string) {
         return this.db.query.users.findFirst({
             where: eq(users.id, id),
+            columns: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                createdAt: true,
+            },
         })
     }
 
@@ -36,7 +44,22 @@ export class UsersRepository {
                 email: users.email,
                 role: users.role,
                 createdAt: users.createdAt,
-                updatedAt: users.updatedAt,
+            });
+
+        return user;
+    }
+
+    async updateUser(id: string, data: UpdateUserData) {
+        const [user] = await this.db
+            .update(users)
+            .set(data)
+            .where(eq(users.id, id))
+            .returning({
+                id: users.id,
+                name: users.name,
+                email: users.email,
+                role: users.role,
+                createdAt: users.createdAt,
             });
 
         return user;
