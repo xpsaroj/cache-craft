@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './modules/users/users.module';
     DatabaseModule,
     AuthModule,
     UsersModule,
+    EventsModule,
   ],
 })
 export class AppModule { }
