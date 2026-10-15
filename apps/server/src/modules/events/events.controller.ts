@@ -1,4 +1,4 @@
-import { Controller, Post, UseGuards, Body, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, UseGuards, Body, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -8,6 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { EventsService } from './events.service';
 import { type AuthenticatedUser } from '../auth/auth.types';
 import { CreateEventDto } from './dto/create-event.dto';
+import { FindEventsDto } from './dto/find-events.dto';
 
 @Controller('events')
 export class EventsController {
@@ -25,5 +26,10 @@ export class EventsController {
     @Param('eventId', new ParseUUIDPipe()) eventId: string
   ) {
     return this.eventsService.getAnEvent(eventId);
+  }
+
+  @Get()
+  getEvents(@Query() query: FindEventsDto) {
+    return this.eventsService.getEvents(query);
   }
 }

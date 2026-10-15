@@ -1,11 +1,13 @@
 import "reflect-metadata";
 
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ResponseTransformInterceptor } from "./common/interceptors/response-transform.interceptor";
+import { ApiExceptionFilter, formatValidationErrors } from './common/filters/api-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -31,11 +33,24 @@ async function bootstrap() {
 
   app.setGlobalPrefix("api")
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errors) =>
+        new BadRequestException({
+          message: 'Validation failed.',
+          errors: formatValidationErrors(errors),
+        }),
+    }),
+  );
+
+  app.useGlobalInterceptors(
+    new ResponseTransformInterceptor(),
+  );
+
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   app.enableShutdownHooks();
 
