@@ -22,3 +22,6 @@ export interface FindEventsFilters {
     page?: number;
     limit?: number;
 }
+
+export interface UpdateEventData extends
+Omit<Partial<CreateEventData>, 'organizerId'> { };

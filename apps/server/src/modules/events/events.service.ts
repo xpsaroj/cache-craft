@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 
+import { EventStatus } from 'src/database/schema';
 import { EventsRepository } from './events.repository';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
-import { FindEventsFilters } from './events.types';
+import { FindEventsFilters, UpdateEventData } from './events.types';
+import { UpdateEventsDto } from './dto/update-events.dto';
 
 @Injectable()
 export class EventsService {
@@ -43,5 +45,123 @@ export class EventsService {
         if (dto.organizerId) filters.organizerId = dto.organizerId;
 
         return this.eventsRepository.findMany(filters);
+    }
+
+    async updateEvent(organizerId: string, eventId: string, dto: UpdateEventsDto) {
+        const updateData: UpdateEventData = {}
+
+        if (dto.venueId) updateData.venueId = dto.venueId;
+        if (dto.title) updateData.title = dto.title;
+        if (dto.description) updateData.description = dto.description;
+        if (dto.startsAt) updateData.startsAt = new Date(dto.startsAt);
+        if (dto.endsAt) updateData.endsAt = new Date(dto.endsAt);
+        if (dto.bookingOpensAt) updateData.bookingOpensAt = new Date(dto.bookingOpensAt);
+        if (dto.bookingClosesAt) updateData.bookingClosesAt = new Date(dto.bookingClosesAt);
+
+        if (Object.keys(updateData).length === 0) {
+            throw new BadRequestException('No valid fields provided for update');
+        }
+
+        const event = await this.eventsRepository.update(organizerId, eventId, updateData);
+
+        if (event) {
+            return event;
+        }
+
+        const metadata = await this.eventsRepository.findMetadataById(eventId);
+
+        if (!metadata) {
+            throw new NotFoundException('Event not found');
+        }
+
+        if (metadata.organizerId !== organizerId) {
+            throw new ForbiddenException(
+                'You are not allowed to perform this action on this event',
+            );
+        }
+
+        // Defensive fallback: the update matched no row for an
+        // unexpected reason, so don't silently return undefined.
+        throw new InternalServerErrorException(
+            'Failed to update the event.',
+        );
+    }
+
+    async deleteEvent(organizerId: string, eventId: string) {
+        const event = await this.eventsRepository.delete(organizerId, eventId);
+
+        if (event) {
+            return {
+                id: event.id,
+                deleted: true,
+            };
+        }
+
+        return this.handleEventMutationFailure(organizerId, eventId, 'delete');
+    }
+
+    async publishEvent(organizerId: string, eventId: string) {
+        const event = await this.eventsRepository.changeStatus(
+            organizerId,
+            eventId,
+            EventStatus.PUBLISHED,
+            [EventStatus.DRAFT],
+        );
+
+        if (event) return event;
+
+        return this.handleEventMutationFailure(organizerId, eventId, 'publish');
+    }
+
+    async unpublishEvent(organizerId: string, eventId: string) {
+        const event = await this.eventsRepository.changeStatus(
+            organizerId,
+            eventId,
+            EventStatus.DRAFT,
+            [EventStatus.PUBLISHED],
+        );
+
+        if (event) return event;
+
+        return this.handleEventMutationFailure(organizerId, eventId, 'unpublish');
+    }
+
+    async cancelEvent(organizerId: string, eventId: string) {
+        const event = await this.eventsRepository.changeStatus(
+            organizerId,
+            eventId,
+            EventStatus.CANCELLED,
+            [EventStatus.DRAFT, EventStatus.PUBLISHED],
+        );
+
+        if (event) return event;
+
+        return this.handleEventMutationFailure(organizerId, eventId, 'cancel');
+    }
+
+    private async handleEventMutationFailure(
+        organizerId: string,
+        eventId: string,
+        action: string,
+    ): Promise<never> {
+        const metadata = await this.eventsRepository.findMetadataById(eventId);
+
+        if (!metadata) {
+            throw new NotFoundException('Event not found');
+        }
+
+        if (metadata.organizerId !== organizerId) {
+            throw new ForbiddenException(
+                'You are not allowed to perform this action on this event',
+            );
+        }
+
+        throw new ConflictException(
+            `Cannot ${action} an event with status ${metadata.status}.`,
+        );
+    }
+
+    async getEventSeats(eventId: string) {
+        return this.eventsRepository.findSeats(eventId);
     }
 }

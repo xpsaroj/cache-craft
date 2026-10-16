@@ -39,6 +39,29 @@ export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export type EventStatus = (typeof eventStatusEnum.enumValues)[number];
 export type BookingStatus = (typeof bookingStatusEnum.enumValues)[number];
 
+
+// Enum values
+export const UserRole = {
+    CUSTOMER: "CUSTOMER",
+    ORGANIZER: "ORGANIZER",
+} as const;
+
+export const BookingStatus = {
+    PENDING: "PENDING",
+    CONFIRMED: "CONFIRMED",
+    CANCELLED: "CANCELLED",
+    EXPIRED: "EXPIRED",
+} as const;
+
+export const EventStatus = {
+    DRAFT: "DRAFT",
+    PUBLISHED: "PUBLISHED",
+    ONGOING: "ONGOING",
+    COMPLETED: "COMPLETED",
+    CANCELLED: "CANCELLED",
+} as const;
+
+
 // USERS
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -148,14 +171,10 @@ export const eventSeats = pgTable(
             scale: 2,
         }).notNull(),
     },
-    (table) => ({
-        eventIdx: index("event_seats_event_idx").on(table.eventId),
-
-        uniqueSeat: unique("event_seat_unique").on(
-            table.eventId,
-            table.seatCode,
-        ),
-    }),
+    (table) => [
+        index("event_seats_event_idx").on(table.eventId),
+        unique("event_seat_unique").on(table.eventId, table.seatCode),
+    ],
 );
 
 // BOOKINGS
@@ -253,6 +272,7 @@ export const reservations = pgTable(
         index("reservation_user_idx").on(table.userId),
     ],
 );
+
 
 // RELATIONS
 export const usersRelations = relations(users, ({ many }) => ({

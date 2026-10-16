@@ -19,6 +19,7 @@ export class CreateEventDto {
   @IsOptional()
   @IsString()
   @MaxLength(4000)
+  @MinLength(10)
   description?: string;
 
   @IsDateString()
