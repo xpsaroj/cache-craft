@@ -5,7 +5,7 @@ import type { SQL } from 'drizzle-orm';
 import { DRIZZLE } from "src/database/database.constants"
 import type { DrizzleDb } from "src/database/database.types";
 import { events, eventSeats, EventStatus } from "src/database/schema"
-import { CreateEventData, FindEventsFilters, UpdateEventData } from "./events.types";
+import { CreateEventData, FindEventsFilters, UpdateEventData, CreateEventSeatsData } from "./events.types";
 import { createPaginatedResult } from "src/common/utils/create-paginated-result";
 
 const eventRelations = {
@@ -142,7 +142,11 @@ export class EventsRepository {
         return createPaginatedResult(items, { page, limit, totalItems })
     }
 
-    async update(organizerId: string, eventId: string, data: UpdateEventData) {
+    async update(
+        organizerId: string, 
+        eventId: string, 
+        data: UpdateEventData
+    ) {
         const [event] = await this.db
             .update(events)
             .set(data)
@@ -218,8 +222,21 @@ export class EventsRepository {
 
 
     async findSeats(eventId: string) {
-        return await this.db.query.eventSeats.findMany({
+        return this.db.query.eventSeats.findMany({
             where: eq(eventSeats.eventId, eventId),
         });
+    }
+
+    async createSeats(
+        eventId: string,
+        data: CreateEventSeatsData
+    ) {
+        return await this.db
+            .insert(eventSeats)
+            .values(data.seats.map(seat => ({
+                eventId,
+                ...seat
+            })))
+            .returning();
     }
 }

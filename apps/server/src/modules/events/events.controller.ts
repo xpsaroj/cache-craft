@@ -1,15 +1,27 @@
-import { Controller, Post, UseGuards, Body, Get, Param, ParseUUIDPipe, Query, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseGuards,
+  Body,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  Patch,
+  Delete
+} from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { type AuthenticatedUser } from '../auth/auth.types';
 
 import { EventsService } from './events.service';
-import { type AuthenticatedUser } from '../auth/auth.types';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventsDto } from './dto/update-events.dto';
+import { CreateEventSeatsDto } from './dto/create-event-seats.dto';
 
 @Controller('events')
 export class EventsController {
@@ -93,5 +105,16 @@ export class EventsController {
     @Param('eventId', new ParseUUIDPipe()) eventId: string
   ) {
     return this.eventsService.getEventSeats(eventId);
+  }
+
+  @Post(':eventId/seats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ORGANIZER')
+  createEventSeats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('eventId', new ParseUUIDPipe()) eventId: string,
+    @Body() dto: CreateEventSeatsDto
+  ) {
+    return this.eventsService.createEventSeats(user.id, eventId, dto);
   }
 }

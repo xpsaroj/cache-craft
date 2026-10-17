@@ -25,3 +25,12 @@ export interface FindEventsFilters {
 
 export interface UpdateEventData extends
 Omit<Partial<CreateEventData>, 'organizerId'> { };
+
+export interface CreateEventSeatsData {
+    seats: {
+        seatCode: string;
+        row: string;
+        number: number;
+        price: string;
+    }[];
+}

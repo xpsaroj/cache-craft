@@ -7,6 +7,8 @@ import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { EventsModule } from './modules/events/events.module';
+import { ReservationsModule } from './modules/reservations/reservations.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { EventsModule } from './modules/events/events.module';
     AuthModule,
     UsersModule,
     EventsModule,
+    ReservationsModule,
+    BookingsModule,
   ],
 })
 export class AppModule { }

@@ -1,11 +1,19 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import {
+    Injectable,
+    BadRequestException,
+    NotFoundException,
+    ConflictException,
+    ForbiddenException,
+    InternalServerErrorException
+} from '@nestjs/common';
 
 import { EventStatus } from 'src/database/schema';
 import { EventsRepository } from './events.repository';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
-import { FindEventsFilters, UpdateEventData } from './events.types';
 import { UpdateEventsDto } from './dto/update-events.dto';
+import { CreateEventSeatsDto } from './dto/create-event-seats.dto';
+import { FindEventsFilters, UpdateEventData } from './events.types';
 
 @Injectable()
 export class EventsService {
@@ -163,5 +171,46 @@ export class EventsService {
 
     async getEventSeats(eventId: string) {
         return this.eventsRepository.findSeats(eventId);
+    }
+
+    async createEventSeats(
+        organizerId: string,
+        eventId: string,
+        dto: CreateEventSeatsDto
+    ) {
+        const event = await this.eventsRepository.findMetadataById(eventId);
+
+        if (!event) {
+            throw new NotFoundException('Event not found');
+        }
+
+        if (event.organizerId !== organizerId) {
+            throw new ForbiddenException(
+                'You are not allowed to perform this action on this event',
+            );
+        }
+
+        if (event.status !== EventStatus.DRAFT) {
+            throw new ConflictException(
+                `Cannot create seats for an event with status ${event.status}.`,
+            );
+        }
+
+        const seats = dto.rows.flatMap(({ row, seatCount, price }) => {
+            const normalizedRow = row.toUpperCase();
+
+            return Array.from({ length: seatCount }, (_, index) => {
+                const number = index + 1;
+
+                return {
+                    seatCode: `${normalizedRow}-${number}`,
+                    row: normalizedRow,
+                    number,
+                    price: price.toString(),
+                };
+            });
+        });
+
+        return this.eventsRepository.createSeats(eventId, { seats });
     }
 }
