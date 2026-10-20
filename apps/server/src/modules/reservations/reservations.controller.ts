@@ -2,6 +2,9 @@ import {
   Controller,
   Post,
   Body,
+  Get,
+  Delete,
+  Param,
   UseGuards,
 } from '@nestjs/common';
 
@@ -24,6 +27,32 @@ export class ReservationsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateReservationDto,
   ) {
-    return this.reservationsService.reserve(user.id, dto);
+    return this.reservationsService.reserveASeat(user.id, dto);
+  }
+
+  @Get('/me')
+  @UseGuards(JwtAuthGuard)
+  getReservations(
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reservationsService.getReservations(user.id);
+  }
+
+  @Get(':reservationId')
+  @UseGuards(JwtAuthGuard)
+  getReservation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('reservationId') reservationId: string,
+  ) {
+    return this.reservationsService.getReservation(user.id, reservationId);
+  }
+
+  @Delete(':reservationId')
+  @UseGuards(JwtAuthGuard)
+  deleteReservation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('reservationId') reservationId: string,
+  ) {
+    return this.reservationsService.deleteReservation(user.id, reservationId);
   }
 }
