@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray, gt } from "drizzle-orm";
 
 import { DRIZZLE } from "src/database/database.constants";
 import type { DrizzleDb } from "src/database/database.types";
@@ -38,7 +38,6 @@ export class ReservationsRepository {
         return reservation;
     }
 
-
     async findById(userId: string, id: string) {
         return this.db.query.reservations.findFirst({
             where: and(
@@ -56,7 +55,10 @@ export class ReservationsRepository {
 
     async findBySeatId(seatId: string) {
         return this.db.query.reservations.findFirst({
-            where: eq(reservations.seatId, seatId),
+            where: and(
+                eq(reservations.seatId, seatId),
+                gt(reservations.expiresAt, new Date()),
+            ),
             columns: {
                 id: true,
                 seatId: true,
@@ -66,9 +68,22 @@ export class ReservationsRepository {
         });
     }
 
+    async findActiveByUserAndSeats(userId: string, seatIds: string[]) {
+        return this.db.query.reservations.findMany({
+            where: and(
+                eq(reservations.userId, userId),
+                inArray(reservations.seatId, seatIds),
+                gt(reservations.expiresAt, new Date()),
+            ),
+        });
+    }
+
     async findMany(userId: string) {
         return this.db.query.reservations.findMany({
-            where: eq(reservations.userId, userId),
+            where: and(
+                eq(reservations.userId, userId),
+                gt(reservations.expiresAt, new Date()),
+            ),
             columns: {
                 id: true,
                 seatId: true,

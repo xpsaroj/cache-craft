@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -20,15 +21,6 @@ export class ReservationsController {
   constructor(
     private readonly reservationsService: ReservationsService
   ) { }
-
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateReservationDto,
-  ) {
-    return this.reservationsService.reserveASeat(user.id, dto);
-  }
 
   @Get('/me')
   @UseGuards(JwtAuthGuard)
@@ -54,5 +46,21 @@ export class ReservationsController {
     @Param('reservationId') reservationId: string,
   ) {
     return this.reservationsService.deleteReservation(user.id, reservationId);
+  }
+}
+
+@Controller('events/:eventId/reservations')
+export class EventReservationsController {
+  constructor(
+    private readonly reservationsService: ReservationsService,
+  ) { }
+
+  @Post()
+  create(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateReservationDto,
+  ) {
+    return this.reservationsService.reserveASeat(eventId, user.id, dto);
   }
 }

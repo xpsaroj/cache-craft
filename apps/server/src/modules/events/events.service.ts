@@ -4,98 +4,181 @@ import {
     NotFoundException,
     ConflictException,
     ForbiddenException,
-    InternalServerErrorException
 } from '@nestjs/common';
 
 import { EventStatus } from 'src/database/schema';
 import { EventsRepository } from './events.repository';
+import { BookingsRepository } from '../bookings/bookings.repository';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FindEventsDto } from './dto/find-events.dto';
 import { UpdateEventsDto } from './dto/update-events.dto';
 import { CreateEventSeatsDto } from './dto/create-event-seats.dto';
 import { FindEventsFilters, UpdateEventData } from './events.types';
+import { validateEventDates } from './events.validation';
 
 @Injectable()
 export class EventsService {
     constructor(
-        private readonly eventsRepository: EventsRepository
+        private readonly eventsRepository: EventsRepository,
+        private readonly bookingsRepository: BookingsRepository,
     ) { }
 
+    private requireEventOwnership<T extends { organizerId: string }>(
+        event: T | undefined,
+        organizerId: string,
+    ): T {
+        if (!event) {
+            throw new NotFoundException('Event not found.');
+        }
+
+        if (event.organizerId !== organizerId) {
+            throw new ForbiddenException(
+                'You are not allowed to perform this action on this event.',
+            );
+        }
+
+        return event;
+    }
+
+    private requireEventStatus(
+        status: EventStatus,
+        allowedStatuses: EventStatus[],
+        action: string,
+    ): void {
+        if (!allowedStatuses.includes(status)) {
+            throw new ConflictException(
+                `Cannot ${action} an event with status ${status}.`,
+            );
+        }
+    }
+
     async createEvent(organizerId: string, dto: CreateEventDto) {
-        const eventData = {
-            ...dto,
-            organizerId,
+        const dates = {
             startsAt: new Date(dto.startsAt),
             endsAt: new Date(dto.endsAt),
             bookingOpensAt: new Date(dto.bookingOpensAt),
             bookingClosesAt: new Date(dto.bookingClosesAt),
-        }
+        };
 
-        return this.eventsRepository.create(eventData);
+        validateEventDates(dates);
+
+        return this.eventsRepository.create({
+            ...dto,
+            ...dates,
+            organizerId,
+        });
     }
 
     async getAnEvent(eventId: string) {
-        return this.eventsRepository.findById(eventId);
+        const event = await this.eventsRepository.findById(eventId);
+
+        if (!event) {
+            throw new NotFoundException('Event not found.');
+        }
+
+        return event;
     }
 
     async getEvents(dto: FindEventsDto) {
         const filters: FindEventsFilters = {
             page: dto.page,
             limit: dto.limit,
-        }
-
-        if (dto.title) filters.title = dto.title;
-        if (dto.description) filters.description = dto.description;
-        if (dto.startsAfter) filters.startsAfter = new Date(dto.startsAfter);
-        if (dto.endsBefore) filters.endsBefore = new Date(dto.endsBefore);
-        if (dto.status) filters.status = dto.status;
-        if (dto.venueId) filters.venueId = dto.venueId;
-        if (dto.organizerId) filters.organizerId = dto.organizerId;
+            ...(dto.title && { title: dto.title }),
+            ...(dto.description && { description: dto.description }),
+            ...(dto.startsAfter && {
+                startsAfter: new Date(dto.startsAfter),
+            }),
+            ...(dto.endsBefore && {
+                endsBefore: new Date(dto.endsBefore),
+            }),
+            ...(dto.status && { status: dto.status }),
+            ...(dto.venueId && { venueId: dto.venueId }),
+            ...(dto.organizerId && { organizerId: dto.organizerId }),
+        };
 
         return this.eventsRepository.findMany(filters);
     }
 
-    async updateEvent(organizerId: string, eventId: string, dto: UpdateEventsDto) {
-        const updateData: UpdateEventData = {}
+    async updateEvent(
+        organizerId: string,
+        eventId: string,
+        dto: UpdateEventsDto,
+    ) {
+        const metadata = this.requireEventOwnership(
+            await this.eventsRepository.findMetadataById(eventId),
+            organizerId,
+        );
 
-        if (dto.venueId) updateData.venueId = dto.venueId;
-        if (dto.title) updateData.title = dto.title;
-        if (dto.description) updateData.description = dto.description;
-        if (dto.startsAt) updateData.startsAt = new Date(dto.startsAt);
-        if (dto.endsAt) updateData.endsAt = new Date(dto.endsAt);
-        if (dto.bookingOpensAt) updateData.bookingOpensAt = new Date(dto.bookingOpensAt);
-        if (dto.bookingClosesAt) updateData.bookingClosesAt = new Date(dto.bookingClosesAt);
+        this.requireEventStatus(
+            metadata.status,
+            [EventStatus.DRAFT, EventStatus.PUBLISHED],
+            'update',
+        );
 
-        if (Object.keys(updateData).length === 0) {
-            throw new BadRequestException('No valid fields provided for update');
+        const dates = {
+            startsAt: dto.startsAt
+                ? new Date(dto.startsAt)
+                : metadata.startsAt,
+            endsAt: dto.endsAt
+                ? new Date(dto.endsAt)
+                : metadata.endsAt,
+            bookingOpensAt: dto.bookingOpensAt
+                ? new Date(dto.bookingOpensAt)
+                : metadata.bookingOpensAt,
+            bookingClosesAt: dto.bookingClosesAt
+                ? new Date(dto.bookingClosesAt)
+                : metadata.bookingClosesAt,
+        };
+
+        validateEventDates(dates);
+
+        const data: UpdateEventData = {};
+
+        if (dto.venueId !== undefined) data.venueId = dto.venueId;
+        if (dto.title !== undefined) data.title = dto.title;
+        if (dto.description !== undefined) data.description = dto.description;
+
+        if (dto.startsAt !== undefined) data.startsAt = dates.startsAt;
+        if (dto.endsAt !== undefined) data.endsAt = dates.endsAt;
+        if (dto.bookingOpensAt !== undefined) {
+            data.bookingOpensAt = dates.bookingOpensAt;
+        }
+        if (dto.bookingClosesAt !== undefined) {
+            data.bookingClosesAt = dates.bookingClosesAt;
         }
 
-        const event = await this.eventsRepository.update(organizerId, eventId, updateData);
-
-        if (event) {
-            return event;
-        }
-
-        const metadata = await this.eventsRepository.findMetadataById(eventId);
-
-        if (!metadata) {
-            throw new NotFoundException('Event not found');
-        }
-
-        if (metadata.organizerId !== organizerId) {
-            throw new ForbiddenException(
-                'You are not allowed to perform this action on this event',
+        if (Object.keys(data).length === 0) {
+            throw new BadRequestException(
+                'At least one field must be provided for an update.',
             );
         }
 
-        // Defensive fallback: the update matched no row for an
-        // unexpected reason, so don't silently return undefined.
-        throw new InternalServerErrorException(
-            'Failed to update the event.',
+        const updatedEvent = await this.eventsRepository.update(
+            organizerId,
+            eventId,
+            data,
         );
+
+        if (!updatedEvent) {
+            return this.handleEventMutationFailure(
+                organizerId,
+                eventId,
+                'update',
+            );
+        }
+
+        return updatedEvent;
     }
 
     async deleteEvent(organizerId: string, eventId: string) {
+        const booking = await this.bookingsRepository.findByEventId(eventId);
+
+        if (booking) {
+            throw new ConflictException(
+                'Cannot delete an event with existing bookings.',
+            );
+        }
+
         const event = await this.eventsRepository.delete(organizerId, eventId);
 
         if (event) {
@@ -122,6 +205,14 @@ export class EventsService {
     }
 
     async unpublishEvent(organizerId: string, eventId: string) {
+        const booking = await this.bookingsRepository.findByEventId(eventId);
+
+        if (booking) {
+            throw new ConflictException(
+                'Cannot unpublish an event with existing bookings.',
+            );
+        }
+
         const event = await this.eventsRepository.changeStatus(
             organizerId,
             eventId,
@@ -135,6 +226,14 @@ export class EventsService {
     }
 
     async cancelEvent(organizerId: string, eventId: string) {
+        const booking = await this.bookingsRepository.findByEventId(eventId);
+
+        if (booking) {
+            throw new ConflictException(
+                'Cannot cancel an event with existing bookings.',
+            );
+        }
+
         const event = await this.eventsRepository.changeStatus(
             organizerId,
             eventId,
@@ -178,24 +277,16 @@ export class EventsService {
         eventId: string,
         dto: CreateEventSeatsDto
     ) {
-        const event = await this.eventsRepository.findMetadataById(eventId);
+        const event = this.requireEventOwnership(
+            await this.eventsRepository.findMetadataById(eventId),
+            organizerId,
+        );
 
-        if (!event) {
-            throw new NotFoundException('Event not found');
-        }
-
-        if (event.organizerId !== organizerId) {
-            throw new ForbiddenException(
-                'You are not allowed to perform this action on this event',
-            );
-        }
-
-        if (event.status !== EventStatus.DRAFT) {
-            throw new ConflictException(
-                `Cannot create seats for an event with status ${event.status}.`,
-            );
-        }
-
+        this.requireEventStatus(
+            event.status,
+            [EventStatus.DRAFT],
+            'create seats for',
+        );
         const seats = dto.rows.flatMap(({ row, seatCount, price }) => {
             const normalizedRow = row.toUpperCase();
 

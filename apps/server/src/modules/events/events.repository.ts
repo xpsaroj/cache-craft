@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { and, eq, ilike, gte, lte, count, inArray } from 'drizzle-orm';
+import { and, eq, ilike, gte, lte, count, inArray, asc } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 
 import { DRIZZLE } from "src/database/database.constants"
@@ -71,7 +71,7 @@ export class EventsRepository {
             with: eventRelations,
         })
     }
-
+    
     async findMany(filters: FindEventsFilters) {
         const {
             title,
@@ -87,12 +87,20 @@ export class EventsRepository {
 
         const conditions: SQL[] = [];
 
+        // Treat user-provided wildcard characters as literal characters.
+        const escapeLike = (value: string) =>
+            value.replace(/[\\%_]/g, '\\$&');
+
         if (title) {
-            conditions.push(ilike(events.title, `%${title}%`));
+            conditions.push(
+                ilike(events.title, `%${escapeLike(title)}%`),
+            );
         }
 
         if (description) {
-            conditions.push(ilike(events.description, `%${description}%`));
+            conditions.push(
+                ilike(events.description, `%${escapeLike(description)}%`),
+            );
         }
 
         if (startsAfter) {
@@ -128,7 +136,7 @@ export class EventsRepository {
                 with: eventRelations,
                 limit,
                 offset,
-                orderBy: [events.startsAt],
+                orderBy: [asc(events.startsAt), asc(events.id)],
             }),
 
             this.db
@@ -139,12 +147,16 @@ export class EventsRepository {
 
         const totalItems = totalResult[0].total;
 
-        return createPaginatedResult(items, { page, limit, totalItems })
+        return createPaginatedResult(items, {
+            page,
+            limit,
+            totalItems,
+        });
     }
 
     async update(
-        organizerId: string, 
-        eventId: string, 
+        organizerId: string,
+        eventId: string,
         data: UpdateEventData
     ) {
         const [event] = await this.db
@@ -172,6 +184,10 @@ export class EventsRepository {
                 id: true,
                 status: true,
                 organizerId: true,
+                startsAt: true,
+                endsAt: true,
+                bookingOpensAt: true,
+                bookingClosesAt: true,
             },
             where: eq(events.id, eventId),
         });
@@ -224,6 +240,15 @@ export class EventsRepository {
     async findSeats(eventId: string) {
         return this.db.query.eventSeats.findMany({
             where: eq(eventSeats.eventId, eventId),
+        });
+    }
+
+    async findSeatsByIds(eventId: string, seatIds: string[]) {
+        return this.db.query.eventSeats.findMany({
+            where: and(
+                eq(eventSeats.eventId, eventId),
+                inArray(eventSeats.id, seatIds),
+            ),
         });
     }
 
