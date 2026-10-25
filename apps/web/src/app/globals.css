@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-canvas: #f7f5f1;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1eee8;
+  --color-surface-subtle: #fbfaf7;
+  --color-ink: #1b1916;
+  --color-ink-soft: #36312b;
+  --color-ink-muted: #6d675e;
+  --color-ink-subtle: #8d867c;
+  --color-ink-inverse: #fdfbf7;
+  --color-line: #e4dfd7;
+  --color-line-strong: #cec7bc;
+  --color-brand: #f6821f;
+  --color-brand-strong: #b54708;
+  --color-brand-soft: #fdf0e3;
+  --color-on-brand: #201207;
+  --color-success: #16794a;
+  --color-success-soft: #e9f7ef;
+  --color-warning: #946200;
+  --color-warning-soft: #fdf5dd;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdeceb;
+  --color-info: #175cd3;
+  --color-info-soft: #eff4ff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-on-brand);
+  }
+
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--color-brand-strong);
+    outline-offset: 2px;
+  }
+
+  dialog::backdrop {
+    background-color: rgb(27 25 22 / 0.45);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .seat-pattern {
+    background-image: radial-gradient(
+      circle,
+      rgb(255 255 255 / 0.16) 1px,
+      transparent 1px
+    );
+    background-size: 16px 16px;
+  }
 }
